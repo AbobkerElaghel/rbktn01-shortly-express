@@ -1,12 +1,19 @@
 const express = require('express');
 const path = require('path');
+var mysql = require('mysql');
 const utils = require('./lib/hashUtils');
 const partials = require('express-partials');
 const bodyParser = require('body-parser');
 const Auth = require('./middleware/auth');
 const models = require('./models');
-
 const app = express();
+
+
+var con = mysql.createConnection({
+  user: "root",
+  password: "root",
+  database: "shortly"
+});
 
 app.set('views', `${__dirname}/views`);
 app.set('view engine', 'ejs');
@@ -17,17 +24,13 @@ app.use(express.static(path.join(__dirname, '../public')));
 
 
 
-app.get('/', 
+
+app.get('/create',
 (req, res) => {
   res.render('index');
 });
 
-app.get('/create', 
-(req, res) => {
-  res.render('index');
-});
-
-app.get('/links', 
+app.get('/links',
 (req, res, next) => {
   models.Links.getAll()
     .then(links => {
@@ -38,7 +41,7 @@ app.get('/links',
     });
 });
 
-app.post('/links', 
+app.post('/links',
 (req, res, next) => {
   var url = req.body.url;
   if (!models.Links.isValidUrl(url)) {
@@ -77,7 +80,46 @@ app.post('/links',
 /************************************************************/
 // Write your authentication routes here
 /************************************************************/
+app.get('/',
+(req, res) => {
+  res.render('login');
+});
 
+app.post('/login',
+(req, res) => {
+var result = models.Users.get(  {username : req.body.username}  );
+console.log(result);
+
+
+  con.connect(function(err) {
+    if (err) throw err;
+    con.query(`SELECT * FROM users where username = "${req.body.username}";`, function (err, result, fields) {
+      if (err) throw err;
+
+      if(models.Users.compare(req.body.password,result[0].password,result[0].salt)){
+        res.render('index');
+      }else{
+        res.render('login');
+      }
+
+    });
+  });
+
+
+});
+
+
+app.get('/signup',
+(req, res) => {
+  res.render('signup');
+});
+
+app.post('/signup',
+(req, res) => {
+  models.Users.create(req.body).then(
+    res.render('index'));
+
+});
 
 
 /************************************************************/
