@@ -8,21 +8,12 @@ const Auth = require('./middleware/auth');
 const models = require('./models');
 const app = express();
 
-
-var con = mysql.createConnection({
-  user: "root",
-  password: "root",
-  database: "shortly"
-});
-
 app.set('views', `${__dirname}/views`);
 app.set('view engine', 'ejs');
 app.use(partials());
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, '../public')));
-
-
 
 
 app.get('/create',
@@ -82,31 +73,15 @@ app.post('/links',
 /************************************************************/
 app.get('/',
 (req, res) => {
+  console.log(models.Sessions.isLo)
+  res.render('index');
+});
+
+app.get('/login',
+(req, res) => {
   res.render('login');
 });
 
-app.post('/login',
-(req, res) => {
-var result = models.Users.get(  {username : req.body.username}  );
-console.log(result);
-
-
-  con.connect(function(err) {
-    if (err) throw err;
-    con.query(`SELECT * FROM users where username = "${req.body.username}";`, function (err, result, fields) {
-      if (err) throw err;
-
-      if(models.Users.compare(req.body.password,result[0].password,result[0].salt)){
-        res.render('index');
-      }else{
-        res.render('login');
-      }
-
-    });
-  });
-
-
-});
 
 
 app.get('/signup',
@@ -114,13 +89,34 @@ app.get('/signup',
   res.render('signup');
 });
 
-app.post('/signup',
-(req, res) => {
-  models.Users.create(req.body).then(
-    res.render('index'));
 
+app.post('/login',
+(req, res) => {
+ models.Users.get(  { username : req.body.username }  )
+ .then( result => {
+  if(result && models.Users.compare(req.body.password,result.password,result.salt)){
+    models.Sessions.create();
+    res.redirect('/');
+ }else{
+  res.redirect('/login');
+ }
+})
 });
 
+
+app.post('/signup',
+(req, res) => {
+  models.Users.get({ username : req.body.username }).then( result => {
+   if(!result){
+    models.Users.create(req.body).then(()=>{res.redirect('/')})
+  }else{
+    res.redirect('/signup')
+  }
+}
+  )
+
+});
+ // models.Users.create(req.body).then( ()=>{res.render('login')} ).catch( ()=>{ res.render('signup')}  )
 
 /************************************************************/
 // Handle the code parameter route last - if all other routes fail
@@ -153,3 +149,16 @@ app.get('/:code', (req, res, next) => {
 });
 
 module.exports = app;
+ // con.connect(function(err) {
+  //   if (err) throw err;
+  //   con.query(`SELECT * FROM users where username = "${req.body.username}";`, function (err, result, fields) {
+  //     if (err) throw err;
+
+  //     if(models.Users.compare(req.body.password,result[0].password,result[0].salt)){
+  //       res.render('index');
+  //     }else{
+  //       res.render('login');
+  //     }
+
+  //   });
+  // });
